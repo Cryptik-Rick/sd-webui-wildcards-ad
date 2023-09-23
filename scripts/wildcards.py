@@ -6,6 +6,11 @@ import re
 
 from modules import scripts, script_callbacks, shared
 
+class PlaceHolder:
+    pass
+
+if(not hasattr(shared.Shared)):
+    shared.Shared = PlaceHolder()
 warned_about_files = {}
 wildcard_dir = scripts.basedir()
 d_replacements = {}
@@ -43,6 +48,10 @@ class WildcardsScript(scripts.Script):
         gen = random.Random()
         i = getattr(p, "_ad_idx", -1) # Image id from after detailer
 
+        if(not hasattr(shared.Shared, "d_replacements") or getattr(p,"_ad_idx",-1) == -1):
+            print(">>Initial pass. setting rep to empty")
+            shared.Shared.d_replacements = {}
+
         #TODO: Add support for negatives
         if getattr(p, "_disable_adetailer", False):
             # ADetailer inpainting or not enabled.
@@ -53,6 +62,7 @@ class WildcardsScript(scripts.Script):
                     prompt_dict = dict_rep[p._ad_idx]
                 
                 for (text, ret) in prompt_dict.items():
+                    print("trying to find", text)
                     p.prompt = p.prompt.replace("[__" + text + "__]", ret)
                 
                 #Check if there still are string to replace...
@@ -60,6 +70,7 @@ class WildcardsScript(scripts.Script):
                 errstate = False
                 for match in re.finditer(pattern, p.prompt):
                     print("Found a fixed wildcard in after detailer prompt that couldn't be replaced. Replacing it with a random one: ", match.group(0))
+                    print("Prompt: ", p.prompt)
                     errstate = True
                 
                 if(errstate):
@@ -88,6 +99,7 @@ class WildcardsScript(scripts.Script):
             p.extra_generation_params["Wildcard prompt"] = original_prompt
 
         shared.Shared.d_replacements = dict_rep
+
 
 def on_ui_settings():
     shared.opts.add_option("wildcards_same_seed", shared.OptionInfo(False, "Use same seed for all images", section=("wildcards", "Wildcards")))
