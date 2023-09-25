@@ -6,11 +6,6 @@ import re
 
 from modules import scripts, script_callbacks, shared
 
-class PlaceHolder:
-    pass
-
-if(not hasattr(shared.Shared)):
-    shared.Shared = PlaceHolder()
 warned_about_files = {}
 wildcard_dir = scripts.basedir()
 d_replacements = {}
@@ -41,16 +36,15 @@ class WildcardsScript(scripts.Script):
         return text
 
     def process(self, p, *args, **kwargs):
-        if(not hasattr(shared.Shared, "d_replacements") or getattr(p,"_ad_idx",-1) == -1):
-            shared.Shared.d_replacements = {}
+        if(not hasattr(shared, "d_replacements") or getattr(p,"_ad_idx",-1) == -1):
+            shared.d_replacements = {}
         original_prompt = p.all_prompts[0]
-        dict_rep = shared.Shared.d_replacements
+        dict_rep = shared.d_replacements
         gen = random.Random()
         i = getattr(p, "_ad_idx", -1) # Image id from after detailer
 
-        if(not hasattr(shared.Shared, "d_replacements") or getattr(p,"_ad_idx",-1) == -1):
-            print(">>Initial pass. setting rep to empty")
-            shared.Shared.d_replacements = {}
+        if(not hasattr(shared, "d_replacements") or getattr(p,"_ad_idx",-1) == -1):
+            shared.d_replacements = {}
 
         #TODO: Add support for negatives
         if getattr(p, "_disable_adetailer", False):
@@ -62,23 +56,20 @@ class WildcardsScript(scripts.Script):
                     prompt_dict = dict_rep[p._ad_idx]
                 
                 for (text, ret) in prompt_dict.items():
-                    print("trying to find", text)
-                    p.prompt = p.prompt.replace("[__" + text + "__]", ret)
+                    p.prompt = p.prompt.replace(f"[__{text}__]", ret)
                 
                 #Check if there still are string to replace...
                 pattern = r'\[__([^]]*)__\]'
                 errstate = False
                 for match in re.finditer(pattern, p.prompt):
                     print("Found a fixed wildcard in after detailer prompt that couldn't be replaced. Replacing it with a random one: ", match.group(0))
-                    print("Prompt: ", p.prompt)
                     errstate = True
                 
                 if(errstate):
                     p.prompt = re.sub(pattern, r'__\1__', p.prompt)
-                    print("Fixed prompt: ", p.prompt)
-
-                print("Final AD prompt: ", p.prompt)
                 
+                print("Final prompt: ", p.prompt)
+
                 p.prompt = "".join(self.replace_wildcard(chunk, gen, {}) for chunk in p.prompt.split("__"))
 
                 # Setting different prompts to the new generated one
@@ -98,7 +89,7 @@ class WildcardsScript(scripts.Script):
         if original_prompt != p.all_prompts[0]:
             p.extra_generation_params["Wildcard prompt"] = original_prompt
 
-        shared.Shared.d_replacements = dict_rep
+        shared.d_replacements = dict_rep
 
 
 def on_ui_settings():
